@@ -1,0 +1,92 @@
+#########################
+# PYTHON / DJANGO
+#########################
+
+# Entorno virtual
+venv/
+ENV/
+env/
+
+# Cache de Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Archivos de configuración locales
+*.env
+.env*
+*.ini
+
+# Base de datos local (NO subir si es personal)
+db.sqlite3
+db.sqlite3-journal
+
+# Archivos compilados
+*.pyo
+*.pyd
+*.pdb
+
+# Archivos temporales
+*.log
+*.pot
+*.pyc
+
+# Archivos de coverage
+htmlcov/
+.coverage
+.coverage.*
+.cache
+
+# Configuración de editor
+.vscode/
+.idea/
+*.swp
+
+#########################
+# DJANGO MEDIA / STATIC
+#########################
+
+# Imágenes subidas por el admin
+media/
+media/*
+
+# Static recolectado por Django (si algún día lo usas)
+staticfiles/
+static/
+
+#########################
+# NODE / REACT / VITE
+#########################
+
+# Dependencias
+node_modules/
+
+# Carpeta generada por el build
+frontend/dist/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Archivos de Vite
+*.tsbuildinfo
+
+#########################
+# SISTEMA / OTROS
+#########################
+
+# Compilados del SO
+.DS_Store
+Thumbs.db
+
+# Archivos de contenedores
+*.tar
+*.zip
+*.gz
+
+# Configuración SSH
+.ssh/
+
+# Configuración Nginx subida por error
+*.conf
