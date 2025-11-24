@@ -1,8 +1,7 @@
 // src/pages/CartPage.jsx
-// ✅ CORREGIDO
 
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';  // <-- useNavigate
 import { useCart } from '../context/CartContext';
 import { HiOutlineTrash, HiMinus, HiPlus } from 'react-icons/hi';
 
@@ -15,6 +14,8 @@ const CartPage = () => {
     clearCart,
     itemCount
   } = useCart();
+
+  const navigate = useNavigate(); // <-- para cambiar de página
 
   const handleRemove = (id) => {
     if (window.confirm("¿Seguro que quieres eliminar este producto?")) {
@@ -31,6 +32,11 @@ const CartPage = () => {
     } else {
       updateQuantity(id, newQuantity);
     }
+  };
+
+  const handleIrAlPago = () => {
+    if (cartItems.length === 0) return;
+    navigate('/checkout'); // <-- aquí vamos a la “pasarela”
   };
 
   if (cartItems.length === 0) {
@@ -50,13 +56,13 @@ const CartPage = () => {
 
   return (
     <div className="bg-white shadow-xl rounded-lg overflow-hidden">
-      <h1 className="text-3xl font-bold text-gray-900 p-6 border-b">Tu Carrito ({itemCount} {itemCount === 1 ? 'item' : 'items'})</h1>
+      <h1 className="text-3xl font-bold text-gray-900 p-6 border-b">
+        Tu Carrito ({itemCount} {itemCount === 1 ? 'item' : 'items'})
+      </h1>
       
       <div className="divide-y divide-gray-200">
         {cartItems.map((item) => (
           <div key={item.id} className="flex flex-col sm:flex-row items-center p-4">
-            
-            {/* ✅ CORRECCIÓN: Ya NO concatenamos nada */}
             <img
               src={item.imagen || 'https://via.placeholder.com/100x100.png?text=Sin+Imagen'}
               alt={item.nombre}
@@ -64,7 +70,10 @@ const CartPage = () => {
             />
             
             <div className="flex-1 min-w-0">
-              <Link to={`/producto/${item.slug}`} className="text-lg font-medium text-gray-900 hover:text-brand-primary-600">
+              <Link
+                to={`/producto/${item.slug}`}
+                className="text-lg font-medium text-gray-900 hover:text-brand-primary-600"
+              >
                 {item.nombre}
               </Link>
               <p className="text-sm text-gray-500">S/ {item.precio}</p>
@@ -115,6 +124,7 @@ const CartPage = () => {
             Vaciar Carrito
           </button>
           <button
+            onClick={handleIrAlPago}   // <-- AQUÍ
             className="w-full sm:w-auto rounded-md border border-transparent bg-brand-primary-600 px-8 py-3 text-base font-medium text-white shadow-sm hover:bg-brand-primary-700"
           >
             Proceder al Pago

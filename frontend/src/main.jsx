@@ -1,23 +1,26 @@
 // src/main.jsx
-// Archivo completo para copiar y pegar (actualizado)
+// Archivo completo actualizado con Firebase AuthProvider
 
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import './index.css'
 import { BrowserRouter } from 'react-router-dom'
-import { CartProvider } from './context/CartContext' // <-- 1. Importa el Proveedor
-import { WishlistProvider } from './context/WishlistContext' // <-- 2. Importa WishlistProvider
+import { CartProvider } from './context/CartContext'
+import { WishlistProvider } from './context/WishlistContext'
+import { AuthProvider } from './context/AuthContext'   // <-- IMPORTANTE
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    {/* 2. Envuelve TODO con el CartProvider y WishlistProvider */}
-    <CartProvider>
-      <WishlistProvider>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
-      </WishlistProvider>
-    </CartProvider>
+    {/* Se envuelve TODO con AuthProvider */}
+    <AuthProvider>
+      <CartProvider>
+        <WishlistProvider>
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </WishlistProvider>
+      </CartProvider>
+    </AuthProvider>
   </React.StrictMode>,
 )

@@ -4,6 +4,7 @@
 from django.contrib import admin
 from django.urls import path, include
 
+
 # Importa esto para las imágenes
 from django.conf import settings
 from django.conf.urls.static import static
