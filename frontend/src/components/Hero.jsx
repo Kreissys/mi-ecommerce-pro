@@ -1,11 +1,16 @@
 // src/components/Hero.jsx
-// ✅ VERSIÓN COMPLETA: Carrusel + Countdown + Video + API
+// ✅ CARRUSEL + COUNTDOWN + VIDEO + DESCUENTOS DINÁMICOS
 
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { HiArrowRight, HiShoppingCart, HiChevronLeft, HiChevronRight } from 'react-icons/hi';
-import { useCart } from '../context/CartContext';
-import { getProductos } from '../services/api';
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import {
+  HiArrowRight,
+  HiShoppingCart,
+  HiChevronLeft,
+  HiChevronRight,
+} from "react-icons/hi";
+import { useCart } from "../context/CartContext";
+import { getProductos } from "../services/api";
 
 const Hero = () => {
   const { addToCart } = useCart();
@@ -19,7 +24,7 @@ const Hero = () => {
   const [timeLeft, setTimeLeft] = useState({
     hours: 23,
     minutes: 59,
-    seconds: 59
+    seconds: 59,
   });
 
   // ============================================
@@ -31,11 +36,10 @@ const Hero = () => {
         setLoading(true);
         const response = await getProductos();
         // Toma los primeros 3 productos como destacados
-        // Más adelante puedes filtrar por un campo "destacado: true"
         const destacados = response.data.slice(0, 3);
         setProductosDestacados(destacados);
       } catch (error) {
-        console.error('Error al cargar productos destacados:', error);
+        console.error("Error al cargar productos destacados:", error);
         // Fallback: productos de ejemplo
         setProductosDestacados([
           {
@@ -43,11 +47,14 @@ const Hero = () => {
             nombre: "Producto Destacado 1",
             slug: "producto-1",
             precio: "100.00",
-            imagen: "https://via.placeholder.com/400x400.png?text=Producto+1",
+            imagen:
+              "https://via.placeholder.com/400x400.png?text=Producto+1",
             descripcion: "Descripción del producto destacado 1",
             stock: 10,
-            categoria: "Categoría"
-          }
+            categoria: "Categoría",
+            tiene_descuento: false,
+            porcentaje_descuento: 0,
+          },
         ]);
       } finally {
         setLoading(false);
@@ -64,7 +71,7 @@ const Hero = () => {
     if (productosDestacados.length === 0) return;
 
     const interval = setInterval(() => {
-      setCurrentIndex((prevIndex) => 
+      setCurrentIndex((prevIndex) =>
         prevIndex === productosDestacados.length - 1 ? 0 : prevIndex + 1
       );
     }, 5000);
@@ -81,7 +88,11 @@ const Hero = () => {
         if (prev.seconds > 0) {
           return { ...prev, seconds: prev.seconds - 1 };
         } else if (prev.minutes > 0) {
-          return { hours: prev.hours, minutes: prev.minutes - 1, seconds: 59 };
+          return {
+            hours: prev.hours,
+            minutes: prev.minutes - 1,
+            seconds: 59,
+          };
         } else if (prev.hours > 0) {
           return { hours: prev.hours - 1, minutes: 59, seconds: 59 };
         } else {
@@ -101,13 +112,13 @@ const Hero = () => {
 
   // Navegación manual del carrusel
   const goToPrevious = () => {
-    setCurrentIndex((prevIndex) => 
+    setCurrentIndex((prevIndex) =>
       prevIndex === 0 ? productosDestacados.length - 1 : prevIndex - 1
     );
   };
 
   const goToNext = () => {
-    setCurrentIndex((prevIndex) => 
+    setCurrentIndex((prevIndex) =>
       prevIndex === productosDestacados.length - 1 ? 0 : prevIndex + 1
     );
   };
@@ -121,14 +132,26 @@ const Hero = () => {
   if (loading) {
     return (
       <div className="relative bg-gray-900 rounded-2xl shadow-2xl overflow-hidden mb-12 h-96 flex items-center justify-center">
-        <div className="text-white text-xl">Cargando productos destacados...</div>
+        <div className="text-white text-xl">
+          Cargando productos destacados...
+        </div>
       </div>
     );
   }
 
   const productoActual = productosDestacados[currentIndex];
-
   if (!productoActual) return null;
+
+  // ✅ LÓGICA DE DESCUENTO DINÁMICA PARA EL HERO
+  const tieneDescuento = Boolean(productoActual.tiene_descuento);
+  const porcentajeDescuento =
+    Number(productoActual.porcentaje_descuento) || 0;
+  const precioNum = Number(productoActual.precio) || 0;
+
+  const precioOriginal =
+    tieneDescuento && porcentajeDescuento > 0
+      ? (precioNum / (1 - porcentajeDescuento / 100)).toFixed(2)
+      : null;
 
   return (
     <div className="relative bg-gray-900 rounded-2xl shadow-2xl overflow-hidden mb-12">
@@ -137,7 +160,6 @@ const Hero = () => {
       {/* ============================================ */}
       <div className="absolute inset-0">
         {useVideo ? (
-          // VIDEO DE FONDO (Descomenta y agrega tu URL de video)
           <video
             autoPlay
             loop
@@ -145,69 +167,75 @@ const Hero = () => {
             playsInline
             className="w-full h-full object-cover opacity-50"
           >
-            <source
-              src="hero.mp4"
-              type="video/mp4"
-            />
+            <source src="hero.mp4" type="video/mp4" />
             Tu navegador no soporta videos HTML5.
           </video>
         ) : (
-          // IMAGEN DE FONDO (por defecto)
           <img
             src="https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?q=80&w=2071&auto=format&fit=crop"
             alt="Juegos de mesa"
             className="w-full h-full object-cover opacity-50"
           />
         )}
-        {/* Overlay degradado más suave */}
         <div className="absolute inset-0 bg-gradient-to-r from-gray-900/80 via-gray-900/60 to-transparent"></div>
       </div>
 
       {/* Contenido */}
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          
           {/* Columna izquierda: Texto */}
-          <div className={`text-white transition-all duration-1000 transform ${isVisible ? 'translate-x-0 opacity-100' : '-translate-x-10 opacity-0'}`}>
-            
-            {/* ============================================ */}
-            {/* 2. COUNTDOWN TIMER - Oferta por tiempo limitado */}
-            {/* ============================================ */}
+          <div
+            className={`text-white transition-all duration-1000 transform ${
+              isVisible ? "translate-x-0 opacity-100" : "-translate-x-10 opacity-0"
+            }`}
+          >
+            {/* COUNTDOWN TIMER */}
             <div className="inline-block mb-6 bg-red-600 rounded-xl px-4 py-3 shadow-lg">
-              <p className="text-xs font-bold uppercase tracking-wide mb-1">¡Oferta Especial Termina En!</p>
+              <p className="text-xs font-bold uppercase tracking-wide mb-1">
+                ¡Oferta Especial Termina En!
+              </p>
               <div className="flex gap-3 items-center">
                 <div className="text-center">
-                  <div className="text-2xl font-bold">{String(timeLeft.hours).padStart(2, '0')}</div>
+                  <div className="text-2xl font-bold">
+                    {String(timeLeft.hours).padStart(2, "0")}
+                  </div>
                   <div className="text-xs opacity-80">Horas</div>
                 </div>
                 <div className="text-2xl font-bold">:</div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold">{String(timeLeft.minutes).padStart(2, '0')}</div>
+                  <div className="text-2xl font-bold">
+                    {String(timeLeft.minutes).padStart(2, "0")}
+                  </div>
                   <div className="text-xs opacity-80">Min</div>
                 </div>
                 <div className="text-2xl font-bold">:</div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold">{String(timeLeft.seconds).padStart(2, '0')}</div>
+                  <div className="text-2xl font-bold">
+                    {String(timeLeft.seconds).padStart(2, "0")}
+                  </div>
                   <div className="text-xs opacity-80">Seg</div>
                 </div>
               </div>
             </div>
-            
+
             <div className="inline-block mb-4">
               <span className="bg-brand-primary-600 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
-                Producto Destacado {currentIndex + 1} de {productosDestacados.length}
+                Producto Destacado {currentIndex + 1} de{" "}
+                {productosDestacados.length}
               </span>
             </div>
-            
+
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold mb-6 leading-tight">
               Vive la Aventura
               <span className="block text-brand-primary-400 mt-2">
                 Más Épica
               </span>
             </h1>
-            
+
             <p className="text-lg sm:text-xl text-gray-300 mb-8 max-w-xl">
-              Descubre los mejores juegos de mesa del mundo. Desde estrategia hasta rol, tenemos todo lo que necesitas para tus partidas inolvidables.
+              Descubre los mejores juegos de mesa del mundo. Desde estrategia
+              hasta rol, tenemos todo lo que necesitas para tus partidas
+              inolvidables.
             </p>
 
             {/* Botones CTA */}
@@ -219,7 +247,7 @@ const Hero = () => {
                 Explorar Catálogo
                 <HiArrowRight className="ml-2 h-5 w-5" />
               </Link>
-              
+
               <a
                 href="#productos"
                 className="inline-flex items-center justify-center px-8 py-4 rounded-lg text-base font-semibold text-white bg-gray-800 hover:bg-gray-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
@@ -231,7 +259,9 @@ const Hero = () => {
             {/* Estadísticas */}
             <div className="flex gap-8 mt-12 pt-8 border-t border-gray-700">
               <div>
-                <p className="text-3xl font-bold text-white">{productosDestacados.length}+</p>
+                <p className="text-3xl font-bold text-white">
+                  {productosDestacados.length}+
+                </p>
                 <p className="text-sm text-gray-400">Productos Destacados</p>
               </div>
               <div>
@@ -248,8 +278,13 @@ const Hero = () => {
           {/* ============================================ */}
           {/* 1. CARRUSEL DE PRODUCTOS */}
           {/* ============================================ */}
-          <div className={`relative transition-all duration-1000 delay-300 transform ${isVisible ? 'translate-x-0 opacity-100' : 'translate-x-10 opacity-0'}`}>
-            
+          <div
+            className={`relative transition-all duration-1000 delay-300 transform ${
+              isVisible
+                ? "translate-x-0 opacity-100"
+                : "translate-x-10 opacity-0"
+            }`}
+          >
             {/* Botones de navegación */}
             {productosDestacados.length > 1 && (
               <>
@@ -260,7 +295,7 @@ const Hero = () => {
                 >
                   <HiChevronLeft className="h-6 w-6" />
                 </button>
-                
+
                 <button
                   onClick={goToNext}
                   className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 bg-white/90 hover:bg-white text-gray-800 rounded-full p-3 shadow-lg hover:shadow-xl transition-all duration-200"
@@ -273,12 +308,14 @@ const Hero = () => {
 
             {/* Tarjeta del producto */}
             <div className="bg-white rounded-2xl shadow-2xl overflow-hidden transform hover:scale-105 transition-transform duration-300">
-              
               {/* Imagen del producto */}
               <div className="relative bg-gray-100 aspect-square">
                 <img
                   key={productoActual.id}
-                  src={productoActual.imagen || 'https://via.placeholder.com/400x400.png?text=Sin+Imagen'}
+                  src={
+                    productoActual.imagen ||
+                    "https://via.placeholder.com/400x400.png?text=Sin+Imagen"
+                  }
                   alt={productoActual.nombre}
                   className="w-full h-full object-contain p-8 animate-fade-in"
                 />
@@ -286,10 +323,12 @@ const Hero = () => {
                 <div className="absolute top-4 right-4 bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full">
                   ✓ {productoActual.stock} en stock
                 </div>
-                {/* Badge de descuento */}
-                <div className="absolute top-4 left-4 bg-red-500 text-white text-sm font-bold px-3 py-1 rounded-full">
-                  -15% OFF
-                </div>
+                {/* ✅ Badge de descuento dinámico */}
+                {tieneDescuento && porcentajeDescuento > 0 && (
+                  <div className="absolute top-4 left-4 bg-red-500 text-white text-sm font-bold px-3 py-1 rounded-full">
+                    -{porcentajeDescuento}% OFF
+                  </div>
+                )}
               </div>
 
               {/* Info del producto */}
@@ -307,10 +346,21 @@ const Hero = () => {
                 {/* Precio */}
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <p className="text-sm text-gray-500 line-through">S/ {(parseFloat(productoActual.precio) * 1.15).toFixed(2)}</p>
+                    {/* Precio original tachado solo si hay descuento real */}
+                    {tieneDescuento && precioOriginal && (
+                      <p className="text-sm text-gray-500 line-through">
+                        S/ {precioOriginal}
+                      </p>
+                    )}
                     <p className="text-3xl font-bold text-gray-900">
-                      S/ {productoActual.precio}
+                      S/ {precioNum.toFixed(2)}
                     </p>
+                    {tieneDescuento && precioOriginal && (
+                      <p className="text-xs text-green-600 font-semibold mt-1">
+                        ✓ ¡Ahorras S/{" "}
+                        {(parseFloat(precioOriginal) - precioNum).toFixed(2)}!
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -323,7 +373,7 @@ const Hero = () => {
                     <HiShoppingCart className="h-5 w-5" />
                     Agregar
                   </button>
-                  
+
                   <Link
                     to={`/producto/${productoActual.slug}`}
                     className="px-6 py-3 rounded-lg font-semibold border-2 border-gray-300 text-gray-700 hover:border-brand-primary-600 hover:text-brand-primary-600 transition-colors duration-200"
@@ -342,9 +392,9 @@ const Hero = () => {
                     key={index}
                     onClick={() => setCurrentIndex(index)}
                     className={`h-2 rounded-full transition-all duration-300 ${
-                      index === currentIndex 
-                        ? 'w-8 bg-brand-primary-600' 
-                        : 'w-2 bg-gray-400 hover:bg-gray-500'
+                      index === currentIndex
+                        ? "w-8 bg-brand-primary-600"
+                        : "w-2 bg-gray-400 hover:bg-gray-500"
                     }`}
                     aria-label={`Ir al producto ${index + 1}`}
                   />
@@ -352,7 +402,6 @@ const Hero = () => {
               </div>
             )}
           </div>
-
         </div>
       </div>
 

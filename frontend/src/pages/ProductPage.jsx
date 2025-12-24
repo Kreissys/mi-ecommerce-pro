@@ -1,5 +1,5 @@
 // src/pages/ProductPage.jsx
-// ✅ CON BADGES Y BREADCRUMBS
+// ✅ CON BADGES, BREADCRUMBS Y URL DE IMAGEN CORREGIDA
 
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
@@ -9,6 +9,31 @@ import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import Breadcrumbs from '../components/Breadcrumbs';
 import Badge from '../components/Badge';
+
+// ✅ URL base del backend (ajústala si usas otra)
+const BACKEND_URL =
+  import.meta.env?.VITE_BACKEND_URL || 'http://127.0.0.1:8000';
+
+// ✅ Función para resolver correctamente la URL de la imagen
+const resolveImageUrl = (imagen) => {
+  // Sin imagen ➜ placeholder
+  if (!imagen) {
+    return 'https://via.placeholder.com/600x600.png?text=Sin+Imagen';
+  }
+
+  // Si ya viene con http/https ➜ la usamos tal cual
+  if (imagen.startsWith('http://') || imagen.startsWith('https://')) {
+    return imagen;
+  }
+
+  // Si viene comenzando con "/" ➜ la pegamos al backend
+  if (imagen.startsWith('/')) {
+    return `${BACKEND_URL}${imagen}`;
+  }
+
+  // Si viene tipo "media/productos/catan.jpg" ➜ le agregamos "/" delante
+  return `${BACKEND_URL}/${imagen}`;
+};
 
 const ProductPage = () => {
   const { slug } = useParams();
@@ -28,8 +53,8 @@ const ProductPage = () => {
         setProducto(response.data);
         setError(null);
       } catch (err) {
-        console.error("Error al obtener el producto:", err);
-        setError("No se pudo encontrar el producto.");
+        console.error('Error al obtener el producto:', err);
+        setError('No se pudo encontrar el producto.');
       } finally {
         setLoading(false);
       }
@@ -53,19 +78,22 @@ const ProductPage = () => {
   }
 
   if (error || !producto) {
-    return <div className="text-center text-red-500 bg-red-100 p-4 rounded-md">{error}</div>;
+    return (
+      <div className="text-center text-red-500 bg-red-100 p-4 rounded-md">
+        {error}
+      </div>
+    );
   }
 
-  const imageUrl = producto.imagen
-    ? producto.imagen
-    : 'https://via.placeholder.com/600x600.png?text=Sin+Imagen';
+  // ✅ Ahora usamos la función que corrige la URL
+  const imageUrl = resolveImageUrl(producto.imagen);
 
   const esFavorito = isInWishlist(producto.id);
 
   // Breadcrumbs dinámicos
   const breadcrumbItems = [
     { name: producto.categoria, path: `/categoria/${producto.categoria}` },
-    { name: producto.nombre, path: `/producto/${producto.slug}` }
+    { name: producto.nombre, path: `/producto/${producto.slug}` },
   ];
 
   // Lógica de badges: usar los campos que vienen desde la API
@@ -75,24 +103,36 @@ const ProductPage = () => {
   const esPopular = producto.stock > 0 && producto.stock < 5;
 
   // Cálculo del precio original (si hay descuento) y ahorro
-  const precioOriginal = tieneDescuento && porcentajeDescuento > 0
-    ? (parseFloat(producto.precio) / (1 - porcentajeDescuento / 100)).toFixed(2)
-    : null;
-  const ahorro = precioOriginal ? (parseFloat(precioOriginal) - parseFloat(producto.precio)).toFixed(2) : null;
+  const precioOriginal =
+    tieneDescuento && porcentajeDescuento > 0
+      ? (
+          parseFloat(producto.precio) /
+          (1 - porcentajeDescuento / 100)
+        ).toFixed(2)
+      : null;
 
-  // DEBUG: mostrar en consola datos del producto y flags usados por la UI
+  const ahorro = precioOriginal
+    ? (parseFloat(precioOriginal) - parseFloat(producto.precio)).toFixed(2)
+    : null;
+
+  // DEBUG (si ya usabas esto y no te da error lo dejamos)
   if (process.env.NODE_ENV === 'development') {
-    console.debug('ProductPage:', producto.slug, { esNuevo, tieneDescuento, porcentajeDescuento, precioOriginal, ahorro });
+    console.debug('ProductPage:', producto.slug, {
+      esNuevo,
+      tieneDescuento,
+      porcentajeDescuento,
+      precioOriginal,
+      ahorro,
+    });
   }
 
   return (
     <div>
       {/* Breadcrumbs */}
       <Breadcrumbs items={breadcrumbItems} />
-      
+
       <div className="bg-white rounded-lg shadow-xl overflow-hidden">
         <div className="lg:grid lg:grid-cols-2 lg:gap-x-8 lg:items-start">
-          
           {/* Columna izquierda: Imagen */}
           <div className="p-4 sm:p-6 lg:p-8 relative">
             {/* Botón de favoritos flotante */}
@@ -101,7 +141,9 @@ const ProductPage = () => {
               className={`absolute top-8 right-8 z-10 p-3 rounded-full bg-white shadow-lg hover:scale-110 transition-all duration-200 ${
                 isAnimating ? 'animate-bounce' : ''
               }`}
-              aria-label={esFavorito ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+              aria-label={
+                esFavorito ? 'Quitar de favoritos' : 'Agregar a favoritos'
+              }
             >
               {esFavorito ? (
                 <HiHeart className="h-8 w-8 text-red-500 animate-pulse" />
@@ -112,10 +154,13 @@ const ProductPage = () => {
 
             {/* Badges en la imagen */}
             <div className="absolute top-8 left-8 z-10 flex flex-col gap-2">
-                {esNuevo && <Badge type="nuevo" />}
-                {tieneDescuento && porcentajeDescuento > 0 && (
-                  <Badge type="descuento" text={`-${porcentajeDescuento}% OFF`} />
-                )}
+              {esNuevo && <Badge type="nuevo" />}
+              {tieneDescuento && porcentajeDescuento > 0 && (
+                <Badge
+                  type="descuento"
+                  text={`-${porcentajeDescuento}% OFF`}
+                />
+              )}
               {esPopular && <Badge type="popular" text="¡Últimas unidades!" />}
               {producto.stock === 0 && <Badge type="agotado" />}
             </div>
@@ -146,7 +191,9 @@ const ProductPage = () => {
                   S/ {precioOriginal}
                 </p>
               )}
-              <p className="text-4xl font-bold text-gray-900">S/ {producto.precio}</p>
+              <p className="text-4xl font-bold text-gray-900">
+                S/ {producto.precio}
+              </p>
               {tieneDescuento && ahorro && (
                 <p className="text-sm text-green-600 font-semibold mt-1">
                   ✓ ¡Ahorras S/ {ahorro}!
@@ -156,9 +203,14 @@ const ProductPage = () => {
 
             {/* Descripción */}
             <div className="mt-6">
-              <h3 className="text-sm font-medium text-gray-900 mb-2">Descripción</h3>
+              <h3 className="text-sm font-medium text-gray-900 mb-2">
+                Descripción
+              </h3>
               <div className="text-base text-gray-700 space-y-4">
-                <p>{producto.descripcion || "Este producto no tiene descripción disponible."}</p>
+                <p>
+                  {producto.descripcion ||
+                    'Este producto no tiene descripción disponible.'}
+                </p>
               </div>
             </div>
 
@@ -169,7 +221,10 @@ const ProductPage = () => {
                   <>
                     <HiCheck className="h-6 w-6 text-green-500" />
                     <p className="ml-2 text-base text-gray-700">
-                      <span className="font-semibold text-green-600">{producto.stock}</span> unidades disponibles
+                      <span className="font-semibold text-green-600">
+                        {producto.stock}
+                      </span>{' '}
+                      unidades disponibles
                     </p>
                   </>
                 ) : (
@@ -190,7 +245,7 @@ const ProductPage = () => {
                   disabled={producto.stock === 0}
                   className="w-full bg-brand-primary-600 border border-transparent rounded-lg py-4 px-8 flex items-center justify-center text-base font-semibold text-white shadow-lg hover:bg-brand-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary-500 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-xl"
                 >
-                  {producto.stock > 0 ? "Agregar al Carrito" : "No disponible"}
+                  {producto.stock > 0 ? 'Agregar al Carrito' : 'No disponible'}
                 </button>
 
                 {/* Botón secundario: Agregar a favoritos */}
@@ -220,7 +275,9 @@ const ProductPage = () => {
 
             {/* Información adicional */}
             <div className="mt-8 border-t pt-8">
-              <h3 className="text-sm font-medium text-gray-900 mb-4">Información del producto</h3>
+              <h3 className="text-sm font-medium text-gray-900 mb-4">
+                Información del producto
+              </h3>
               <div className="space-y-3 text-sm text-gray-600">
                 <div className="flex justify-between">
                   <span className="font-medium">Categoría:</span>
@@ -228,13 +285,23 @@ const ProductPage = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="font-medium">Stock:</span>
-                  <span className={producto.stock > 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
-                    {producto.stock > 0 ? `${producto.stock} disponibles` : 'Agotado'}
+                  <span
+                    className={
+                      producto.stock > 0
+                        ? 'text-green-600 font-semibold'
+                        : 'text-red-600 font-semibold'
+                    }
+                  >
+                    {producto.stock > 0
+                      ? `${producto.stock} disponibles`
+                      : 'Agotado'}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="font-medium">Precio:</span>
-                  <span className="font-bold text-gray-900">S/ {producto.precio}</span>
+                  <span className="font-bold text-gray-900">
+                    S/ {producto.precio}
+                  </span>
                 </div>
               </div>
             </div>

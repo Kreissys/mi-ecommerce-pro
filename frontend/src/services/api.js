@@ -1,34 +1,65 @@
 // src/services/api.js
-// Archivo completo para copiar y pegar
+import axios from "axios";
 
-import axios from 'axios';
-
-// Creamos una instancia de Axios con la URL base de nuestra API de Django
+// Cliente Axios apuntando a la API de Django
 const apiClient = axios.create({
-  baseURL: 'http://127.0.0.1:8000/api/v1/',
+  baseURL: "http://127.0.0.1:8000/api/v1/",
   headers: {
-    'Content-Type': 'application/json'
-  }
+    "Content-Type": "application/json",
+  },
 });
 
-// --- Funciones para interactuar con la API ---
+// ------------ PRODUCTOS ------------
 
 // Obtener todos los productos
 export const getProductos = () => {
-  return apiClient.get('/productos/');
+  return apiClient.get("/productos/");
 };
 
-// Obtener un solo producto por su slug
+// Obtener un producto por slug
 export const getProducto = (slug) => {
   return apiClient.get(`/productos/${slug}/`);
 };
 
-// Obtener todas las categorías (con sus productos)
-export const getCategorias = () => {
-  return apiClient.get('/categorias/');
+// Crear producto con imagen (multipart/form-data)
+export const createProductoConImagen = (formData) => {
+  return apiClient.post("/productos/", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
 };
 
-// Obtener una sola categoría por su slug
+// Actualizar producto con imagen (PATCH, parcial)
+export const updateProductoConImagen = (slug, formData) => {
+  return apiClient.patch(`/productos/${slug}/`, formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+};
+
+// Eliminar producto por slug
+export const deleteProducto = (slug) => {
+  return apiClient.delete(`/productos/${slug}/`);
+};
+
+// ------------ CATEGORÍAS ------------
+
+// Obtener todas las categorías
+export const getCategorias = () => {
+  return apiClient.get("/categorias/");
+};
+
+// Obtener una categoría por slug
 export const getCategoria = (slug) => {
   return apiClient.get(`/categorias/${slug}/`);
 };
+// ✅ Disminuir stock de un producto según su slug
+export const disminuirStockProducto = (slug, cantidad) => {
+  return apiClient.post(`/productos/${slug}/disminuir_stock/`, {
+    cantidad,
+  });
+};
+export const crearPedido = (data) =>
+  apiClient.post('/pedidos/', data);

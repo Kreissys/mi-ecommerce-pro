@@ -1,23 +1,25 @@
 // src/components/Navbar.jsx
 
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import {
   HiOutlineShoppingCart,
   HiOutlineMenu,
   HiOutlineX,
-  HiOutlineHeart
-} from 'react-icons/hi';
-import { useCart } from '../context/CartContext';
-import { useWishlist } from '../context/WishlistContext';
-import { useAuth } from '../context/AuthContext';   // <-- IMPORTANTE
-import logo from '../assets/ludoteka-logo.png';
+  HiOutlineHeart,
+} from "react-icons/hi";
+import { useCart } from "../context/CartContext";
+import { useWishlist } from "../context/WishlistContext";
+import { useAuth } from "../context/AuthContext"; 
+import logo from "../assets/ludoteka-logo.png";
 
 const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const { itemCount } = useCart();
   const { wishlistCount } = useWishlist();
-  const { user, logout } = useAuth();   // usuario + logout
+  const { user, role, isAdmin, logout } = useAuth();
+
+  console.log("ROL QUE LLEGA:", role, "isAdmin:", isAdmin, "UID:", user?.uid);
 
   const handleLogout = async () => {
     try {
@@ -31,34 +33,59 @@ const Navbar = () => {
     <nav className="bg-white shadow-md sticky top-0 z-50">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-
           {/* Logo */}
           <div className="flex-shrink-0 flex items-center">
             <Link to="/" className="flex items-center space-x-2">
               <img src={logo} alt="Ludoteka Logo" className="h-10 w-auto" />
-              <span className="text-2xl font-bold text-brand-primary-700">Ludoteka</span>
+              <span className="text-2xl font-bold text-brand-primary-700">
+                Ludoteka
+              </span>
             </Link>
           </div>
 
           {/* Categorías (solo desktop) */}
           <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-            <Link to="/" className="text-gray-500 hover:text-brand-primary-600 px-1 pt-1 text-sm font-medium">
+            <Link
+              to="/"
+              className="text-gray-500 hover:text-brand-primary-600 px-1 pt-1 text-sm font-medium"
+            >
               Inicio
             </Link>
-            <Link to="/categoria/estrategia" className="text-gray-500 hover:text-brand-primary-600 px-1 pt-1 text-sm font-medium">
+
+            <Link
+              to="/categoria/estrategia"
+              className="text-gray-500 hover:text-brand-primary-600 px-1 pt-1 text-sm font-medium"
+            >
               Estrategia
             </Link>
-            <Link to="/categoria/familiares" className="text-gray-500 hover:text-brand-primary-600 px-1 pt-1 text-sm font-medium">
+
+            <Link
+              to="/categoria/familiares"
+              className="text-gray-500 hover:text-brand-primary-600 px-1 pt-1 text-sm font-medium"
+            >
               Familiares
             </Link>
-            <Link to="/categoria/juegos-de-cartas" className="text-gray-500 hover:text-brand-primary-600 px-1 pt-1 text-sm font-medium">
+
+            <Link
+              to="/categoria/juegos-de-cartas"
+              className="text-gray-500 hover:text-brand-primary-600 px-1 pt-1 text-sm font-medium"
+            >
               Cartas
             </Link>
+
+            {/* Panel admin — SOLO ADMIN */}
+            {isAdmin && (
+              <Link
+                to="/admin"
+                className="text-purple-700 font-semibold px-1 pt-1 text-sm hover:text-purple-900"
+              >
+                Panel admin
+              </Link>
+            )}
           </div>
 
           {/* Iconos y login */}
           <div className="flex items-center gap-4">
-
             {/* Wishlist */}
             <Link to="/favoritos" className="group -m-2 p-2 flex items-center">
               <HiOutlineHeart className="h-6 w-6 text-gray-400 group-hover:text-red-500 transition-colors" />
@@ -79,7 +106,7 @@ const Navbar = () => {
               )}
             </Link>
 
-            {/* LOGIN / PERFIL / LOGOUT */}
+            {/* LOGIN / PERFIL / LOGOUT (desktop) */}
             <div className="hidden sm:flex items-center gap-3">
               {user ? (
                 <>
@@ -91,10 +118,32 @@ const Navbar = () => {
                     Mi perfil
                   </Link>
 
-                  {/* Correo truncado */}
-                  <span className="text-sm text-gray-600 max-w-[140px] truncate">
-                    {user.email}
-                  </span>
+                  {/* Panel admin — SOLO ADMIN */}
+                  {isAdmin && (
+                    <Link
+                      to="/admin"
+                      className="text-sm font-semibold text-purple-600 hover:text-purple-800"
+                    >
+                      Panel admin
+                    </Link>
+                  )}
+
+                  {/* Correo + rol */}
+                  <div className="flex items-center gap-2 max-w-[220px]">
+                    <span className="text-sm text-gray-600 truncate">
+                      {user.email}
+                    </span>
+
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full ${
+                        isAdmin
+                          ? "bg-purple-100 text-purple-700"
+                          : "bg-gray-100 text-gray-600"
+                      }`}
+                    >
+                      {isAdmin ? "Admin" : "Cliente"}
+                    </span>
+                  </div>
 
                   {/* Logout */}
                   <button
@@ -134,7 +183,6 @@ const Navbar = () => {
       {/* Menú móvil */}
       <div className={`sm:hidden ${menuOpen ? "block" : "hidden"}`}>
         <div className="pt-2 pb-3 space-y-1">
-
           <Link
             to="/"
             onClick={() => setMenuOpen(false)}
@@ -159,9 +207,27 @@ const Navbar = () => {
             Estrategia
           </Link>
 
-          {/* LOGIN / LOGOUT MOVIL */}
+          {/* PANEL ADMIN MÓVIL */}
+          {isAdmin && (
+            <Link
+              to="/admin"
+              onClick={() => setMenuOpen(false)}
+              className="block pl-3 pr-4 py-2 text-purple-700 hover:bg-purple-100 font-semibold"
+            >
+              Panel admin
+            </Link>
+          )}
+
+          {/* LOGIN / LOGOUT (móvil) */}
           {user ? (
             <>
+              <div className="px-3 py-2 text-xs text-gray-500">
+                Sesión: {user.email}{" "}
+                <span className="ml-1 font-semibold">
+                  ({isAdmin ? "Admin" : "Cliente"})
+                </span>
+              </div>
+
               <Link
                 to="/perfil"
                 onClick={() => setMenuOpen(false)}
@@ -177,7 +243,7 @@ const Navbar = () => {
                 }}
                 className="w-full text-left pl-3 pr-4 py-2 text-gray-600 hover:bg-gray-100"
               >
-                Cerrar sesión ({user.email})
+                Cerrar sesión
               </button>
             </>
           ) : (

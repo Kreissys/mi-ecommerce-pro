@@ -21,5 +21,5 @@ export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
 // Storage (subida de fotos)
-export const storage = getStorage(app);   // <-- ESTA LÍNEA ES OBLIGATORIA
+export const storage = getStorage(app);   
 export const db = getFirestore(app);

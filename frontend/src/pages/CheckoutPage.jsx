@@ -3,16 +3,29 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useCart } from "../context/CartContext";
+import { useAuth } from "../context/AuthContext";
+import { disminuirStockProducto } from "../services/api";
+import { db } from "../firebaseConfig";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
 const CheckoutPage = () => {
   const { cartItems, cartTotal, clearCart } = useCart();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
+  // Datos de tarjeta
+  const [cardType, setCardType] = useState("credito"); // "credito" | "debito"
+  const [cardName, setCardName] = useState("");
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardExpiry, setCardExpiry] = useState(""); // MM/AA
+  const [cardCVV, setCardCVV] = useState("");
+  const [cardErrors, setCardErrors] = useState({});
+
+  // Datos del formulario de envío / contacto
   const [form, setForm] = useState({
     nombre: "",
     correo: "",
     direccion: "",
-    metodoPago: "tarjeta",
   });
 
   const [processing, setProcessing] = useState(false);
@@ -25,42 +38,140 @@ const CheckoutPage = () => {
     });
   };
 
- // src/pages/CheckoutPage.jsx
+  // ============================
+  // Helpers para datos de tarjeta
+  // ============================
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setError("");
+  const formatCardNumber = (value) => {
+    const digits = value.replace(/\D/g, "").slice(0, 16); // solo 16 dígitos
+    return digits.replace(/(\d{4})(?=\d)/g, "$1 ");
+  };
 
-  if (!form.nombre || !form.correo || !form.direccion) {
-    setError("Completa todos los campos para continuar.");
-    return;
-  }
+  const handleCardNumberChange = (e) => {
+    setCardNumber(formatCardNumber(e.target.value));
+  };
 
-  try {
-    setProcessing(true);
+  const handleCVVChange = (e) => {
+    const digits = e.target.value.replace(/\D/g, "").slice(0, 3); // máx 3 dígitos
+    setCardCVV(digits);
+  };
 
-    // 🧪 Simulamos pago
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+  const validateCardData = () => {
+    const errors = {};
 
-    // 👉 Guardamos una copia de los productos ANTES de vaciar el carrito
-    const itemsSnapshot = cartItems.map(item => ({ ...item }));
+    if (!cardName.trim()) {
+      errors.cardName = "Ingresa el nombre tal como aparece en la tarjeta.";
+    }
 
-    clearCart();
+    const digitsNumber = cardNumber.replace(/\D/g, "");
+    if (digitsNumber.length !== 16) {
+      errors.cardNumber = "El número de tarjeta debe tener 16 dígitos.";
+    }
 
-    navigate("/checkout/success", {
-      state: {
-        nombre: form.nombre,
+    if (!/^\d{2}\/\d{2}$/.test(cardExpiry)) {
+      errors.cardExpiry = "Usa el formato MM/AA.";
+    } else {
+      const [mm, yy] = cardExpiry.split("/").map((v) => parseInt(v, 10));
+      if (mm < 1 || mm > 12) {
+        errors.cardExpiry = "El mes debe estar entre 01 y 12.";
+      }
+    }
+
+    const cvvDigits = cardCVV.replace(/\D/g, "");
+    if (cvvDigits.length !== 3) {
+      errors.cardCVV = "El CVV debe tener exactamente 3 dígitos.";
+    }
+
+    setCardErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // ============================
+  // Submit del checkout
+  // ============================
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+
+    if (!user) {
+      setError("Debes iniciar sesión para completar la compra.");
+      return;
+    }
+
+    if (!form.nombre || !form.correo || !form.direccion) {
+      setError("Completa todos los campos para continuar.");
+      return;
+    }
+
+    if (!validateCardData()) {
+      return;
+    }
+
+    try {
+      setProcessing(true);
+
+      // 🧪 Simulamos pago
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      // ✅ Actualizar stock en Django
+      await Promise.all(
+        cartItems.map((item) =>
+          disminuirStockProducto(item.slug, item.quantity)
+        )
+      );
+
+      // Snapshot de ítems para factura y para la pantalla de éxito
+      const itemsSnapshot = cartItems.map((item) => ({
+        id: item.id,
+        nombre: item.nombre,
+        slug: item.slug,
+        cantidad: item.quantity,
+        precio: item.precio,
+        subtotal: item.precio * item.quantity,
+      }));
+
+      // Crear factura en Firestore: users/{uid}/invoices
+      const invoiceNumber = `FAC-${Math.floor(
+        100000 + Math.random() * 900000
+      )}`;
+
+      await addDoc(collection(db, "users", user.uid, "invoices"), {
+        number: invoiceNumber,
         total: cartTotal,
-        items: itemsSnapshot,    // 👈 aquí van los productos para la factura
-      },
-    });
-  } catch (err) {
-    console.error(err);
-    setError("Hubo un problema al procesar el pago. Intenta de nuevo.");
-  } finally {
-    setProcessing(false);
-  }
-};
+        createdAt: serverTimestamp(),
+        items: itemsSnapshot,
+        nombreCliente: form.nombre,
+        correoCliente: form.correo,
+        metodoPago:
+          cardType === "credito" ? "Tarjeta de crédito" : "Tarjeta de débito",
+      });
+
+      clearCart();
+
+      navigate("/checkout/success", {
+        state: {
+          nombre: form.nombre,
+          total: cartTotal,
+          items: itemsSnapshot,
+          metodoPago:
+            cardType === "credito" ? "Tarjeta de crédito" : "Tarjeta de débito",
+        },
+      });
+    } catch (err) {
+      console.error(err);
+      setError(
+        err?.response?.data?.detail ||
+          "Hubo un problema al procesar el pago o guardar la factura."
+      );
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // ============================
+  // Si el carrito está vacío
+  // ============================
 
   if (!cartItems || cartItems.length === 0) {
     return (
@@ -78,6 +189,10 @@ const handleSubmit = async (e) => {
       </div>
     );
   }
+
+  // ============================
+  // Vista principal
+  // ============================
 
   return (
     <div className="max-w-5xl mx-auto mt-10 grid gap-8 md:grid-cols-3">
@@ -114,6 +229,7 @@ const handleSubmit = async (e) => {
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Datos personales */}
           <div>
             <label className="block text-sm font-medium text-gray-700">
               Nombre completo
@@ -124,7 +240,7 @@ const handleSubmit = async (e) => {
               value={form.nombre}
               onChange={handleChange}
               className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary-500"
-              placeholder="Ej: Alexander Alcocer"
+              placeholder="Tu Nombre"
             />
           </div>
 
@@ -156,20 +272,115 @@ const handleSubmit = async (e) => {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
+          {/* Método de pago: tarjeta */}
+          <div className="space-y-4 mt-6">
+            <h3 className="text-lg font-semibold text-gray-900">
               Método de pago
-            </label>
-            <select
-              name="metodoPago"
-              value={form.metodoPago}
-              onChange={handleChange}
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary-500"
-            >
-              <option value="tarjeta">Tarjeta de crédito / débito</option>
-              <option value="yape">Yape / Plin </option>
-              <option value="contraentrega">Pago contra entrega</option>
-            </select>
+            </h3>
+
+            {/* Tipo de tarjeta */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Tipo de tarjeta
+              </label>
+              <select
+                value={cardType}
+                onChange={(e) => setCardType(e.target.value)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary-500 focus:ring-brand-primary-500 text-sm"
+              >
+                <option value="credito">Tarjeta de crédito</option>
+                <option value="debito">Tarjeta de débito</option>
+              </select>
+            </div>
+
+            {/* Nombre en la tarjeta */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Nombre en la tarjeta
+              </label>
+              <input
+                type="text"
+                value={cardName}
+                onChange={(e) => setCardName(e.target.value)}
+                placeholder="Nombre del propietario"
+                className={`mt-1 block w-full rounded-md border ${
+                  cardErrors.cardName ? "border-red-500" : "border-gray-300"
+                } shadow-sm focus:border-brand-primary-500 focus:ring-brand-primary-500 text-sm`}
+              />
+              {cardErrors.cardName && (
+                <p className="mt-1 text-xs text-red-600">
+                  {cardErrors.cardName}
+                </p>
+              )}
+            </div>
+
+            {/* Número de tarjeta */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Número de tarjeta
+              </label>
+              <input
+                type="text"
+                value={cardNumber}
+                onChange={handleCardNumberChange}
+                placeholder="1234 5678 9012 3456"
+                inputMode="numeric"
+                className={`mt-1 block w-full rounded-md border ${
+                  cardErrors.cardNumber ? "border-red-500" : "border-gray-300"
+                } shadow-sm focus:border-brand-primary-500 focus:ring-brand-primary-500 text-sm`}
+              />
+              {cardErrors.cardNumber && (
+                <p className="mt-1 text-xs text-red-600">
+                  {cardErrors.cardNumber}
+                </p>
+              )}
+            </div>
+
+            {/* Fecha y CVV */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Fecha de vencimiento
+                </label>
+                <input
+                  type="text"
+                  value={cardExpiry}
+                  onChange={(e) => setCardExpiry(e.target.value)}
+                  placeholder="MM/AA"
+                  maxLength={5}
+                  className={`mt-1 block w-full rounded-md border ${
+                    cardErrors.cardExpiry ? "border-red-500" : "border-gray-300"
+                  } shadow-sm focus:border-brand-primary-500 focus:ring-brand-primary-500 text-sm`}
+                />
+                {cardErrors.cardExpiry && (
+                  <p className="mt-1 text-xs text-red-600">
+                    {cardErrors.cardExpiry}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  CVV
+                </label>
+                <input
+                  type="text"
+                  value={cardCVV}
+                  onChange={handleCVVChange}
+                  placeholder="123"
+                  maxLength={3}
+                  inputMode="numeric"
+                  className={`mt-1 block w-full rounded-md border ${
+                    cardErrors.cardCVV ? "border-red-500" : "border-gray-300"
+                  } shadow-sm focus:border-brand-primary-500 focus:ring-brand-primary-500 text-sm`}
+                />
+                {cardErrors.cardCVV && (
+                  <p className="mt-1 text-xs text-red-600">
+                    {cardErrors.cardCVV}
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
 
           {error && (
@@ -188,8 +399,7 @@ const handleSubmit = async (e) => {
         </form>
 
         <p className="text-xs text-gray-400 text-center">
-          Esta es una pasarela de pago simulada para fines académicos. No se
-          realiza ningún cobro real.
+
         </p>
       </div>
     </div>
